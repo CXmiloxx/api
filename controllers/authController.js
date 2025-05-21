@@ -1,44 +1,43 @@
-import { User } from '../models/User.js';
-import { errorResponse, generateToken } from '../utils/errorHandler.js';
+import User from '../models/User.js';
+import { generateToken } from '../utils/errorHandler.js';
 
 /**
  * @desc    Registrar un nuevo usuario
  * @route   POST /api/auth/register
- * @access  Público
+ * @access  Público/Admin
  */
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { username, password, role } = req.body;
 
     // Verificar si el usuario ya existe
     const userExists = await User.findOne({
-      where: { email: req.body.email },
+      where: { username },
     });
 
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'El usuario ya existe',
+        message: 'El nombre de usuario ya existe',
       });
     }
 
     // Crear nuevo usuario
     const user = await User.create({
-      name,
-      email,
+      username,
       password,
+      role: role || 'supervisor', // Por defecto es supervisor
     });
 
     if (user) {
       res.status(201).json({
         success: true,
         user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
+          id: user.id,
+          username: user.username,
           role: user.role,
         },
-        token: generateToken(user._id),
+        token: generateToken(user.id),
       });
     } else {
       res.status(400).json({
@@ -63,27 +62,24 @@ export const registerUser = async (req, res) => {
  */
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    // Buscar usuario por email
-    const user = await User.findOne({ email });
+    // Buscar usuario por nombre de usuario
+    const user = await User.findOne({ where: { username } });
 
     // Verificar si el usuario existe y la contraseña es correcta
     if (user && (await user.matchPassword(password))) {
+      console.log('Usuario encontrado:', user.toJSON());
+      
       res.status(200).json({
         success: true,
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        token: generateToken(user._id),
+        message: 'Inicio de sesión exitoso',
+        token: generateToken(user.id),
       });
     } else {
       res.status(401).json({
         success: false,
-        message: 'Email o contraseña incorrectos',
+        message: 'Nombre de usuario o contraseña incorrectos',
       });
     }
   } catch (error) {
@@ -104,7 +100,9 @@ export const loginUser = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     // El middleware protect ya añade el usuario a req.user
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
 
     if (user) {
       res.status(200).json({

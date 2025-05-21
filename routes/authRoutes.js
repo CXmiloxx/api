@@ -1,6 +1,6 @@
 import express from 'express';
 import { check } from 'express-validator';
-import { protect } from '../middlewares/authMiddleware.js';
+import { protect, admin } from '../middlewares/authMiddleware.js';
 import {
   registerUser,
   loginUser,
@@ -14,12 +14,12 @@ const router = express.Router();
 router.post(
   '/register',
   [
-    check('name', 'El nombre es obligatorio').not().isEmpty(),
-    check('email', 'Por favor incluya un email válido').isEmail(),
+    check('username', 'El nombre de usuario es obligatorio').not().isEmpty(),
     check(
       'password',
       'La contraseña debe tener al menos 6 caracteres',
     ).isLength({ min: 6 }),
+    check('role').optional().isIn(['supervisor', 'admin']),
   ],
   validateRequest,
   registerUser,
@@ -28,7 +28,7 @@ router.post(
 router.post(
   '/login',
   [
-    check('email', 'Por favor incluya un email válido').isEmail(),
+    check('username', 'El nombre de usuario es obligatorio').not().isEmpty(),
     check('password', 'La contraseña es obligatoria').exists(),
   ],
   validateRequest,

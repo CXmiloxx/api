@@ -1,20 +1,14 @@
 import { DataTypes } from 'sequelize';
-import connectDB from '../config/db.js';
+import sequelize from '../config/db.js';
+import bcrypt from 'bcryptjs';
 
-export const User = connectDB.define('User', {
-  name: {
+export const User = sequelize.define('User', {
+  username: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true,
     validate: {
-      notEmpty: { msg: 'El nombre es obligatorio' },
-    },
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: { msg: 'El email ya existe' },
-    validate: {
-      isEmail: { msg: 'Debe ser un email válido' },
+      notEmpty: { msg: 'El nombre de usuario es obligatorio' },
     },
   },
   password: {
@@ -28,10 +22,30 @@ export const User = connectDB.define('User', {
     },
   },
   role: {
-    type: DataTypes.ENUM('user', 'admin'),
-    defaultValue: 'user',
+    type: DataTypes.ENUM('supervisor', 'admin'),
+    defaultValue: 'supervisor',
   },
-  image: {
-    type: DataTypes.STRING,
+}, {
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
   },
 });
+
+// Método para comparar contraseñas
+User.prototype.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+export default User;
